@@ -1,0 +1,189 @@
+/* 
+   Air Writing Dark Theme QSS 
+   Premium modern design system utilizing a dark color palette, 
+   curated rounded borders, subtle gradients, and elegant focus/hover visual states.
+*/
+
+QMainWindow {
+    background-color: #0f0f11;
+    color: #e4e4e7;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* --- Panel & Card Frames --- */
+QFrame#control_panel, QFrame#toolbar_frame {
+    background-color: #16161a;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    padding: 6px;
+}
+
+QFrame#status_panel {
+    background-color: #121214;
+    border-top: 1px solid #27272a;
+}
+
+/* --- Labels --- */
+QLabel {
+    color: #f4f4f5;
+    font-size: 13px;
+}
+
+QLabel#title_label {
+    font-size: 16px;
+    font-weight: bold;
+    color: #818cf8; /* Indigo accent */
+    margin-bottom: 4px;
+}
+
+QLabel#subtitle_label {
+    font-size: 11px;
+    color: #a1a1aa;
+}
+
+/* --- Push Buttons --- */
+QPushButton {
+    background-color: #27272a;
+    color: #f4f4f5;
+    border: 1px solid #3f3f46;
+    border-radius: 8px;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    min-height: 20px;
+}
+
+QPushButton:hover {
+    background-color: #3f3f46;
+    border-color: #52525b;
+}
+
+QPushButton:pressed {
+    background-color: #18181b;
+    border-color: #27272a;
+}
+
+/* Highlighted Accent Button */
+QPushButton#accent_btn {
+    background-color: #4f46e5; /* Indigo */
+    border-color: #6366f1;
+    color: #ffffff;
+}
+
+QPushButton#accent_btn:hover {
+    background-color: #6366f1;
+    border-color: #818cf8;
+}
+
+QPushButton#accent_btn:pressed {
+    background-color: #3730a3;
+}
+
+/* Toggle / Action Buttons (e.g. Toolbar tools) */
+QPushButton:checked {
+    background-color: #4f46e5;
+    border-color: #6366f1;
+    color: #ffffff;
+}
+
+QPushButton:disabled {
+    background-color: #18181b;
+    color: #71717a;
+    border-color: #27272a;
+}
+
+/* --- Color Circle Presets --- */
+QPushButton#color_preset_btn {
+    border-radius: 12px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+    padding: 0px;
+}
+
+QPushButton#color_preset_btn:hover {
+    border: 2px solid #ffffff;
+}
+
+QPushButton#color_preset_btn:checked {
+    border: 2px solid #ffffff;
+}
+
+/* --- Combo Boxes --- */
+QComboBox {
+    background-color: #27272a;
+    border: 1px solid #3f3f46;
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #f4f4f5;
+    min-width: 120px;
+}
+
+QComboBox:hover {
+    background-color: #3f3f46;
+    border-color: #52525b;
+}
+
+QComboBox::drop-down {
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 20px;
+    border-left-width: 0px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    selection-background-color: #4f46e5;
+    selection-color: #ffffff;
+    color: #f4f4f5;
+}
+
+/* --- Sliders --- */
+QSlider::groove:horizontal {
+    border: 1px solid #27272a;
+    height: 6px;
+    background: #18181b;
+    border-radius: 3px;
+}
+
+QSlider::sub-page:horizontal {
+    background: #4f46e5;
+    border-radius: 3px;
+}
+
+QSlider::handle:horizontal {
+    background: #ffffff;
+    border: 1px solid #4f46e5;
+    width: 16px;
+    height: 16px;
+    margin: -5px 0;
+    border-radius: 8px;
+}
+
+QSlider::handle:horizontal:hover {
+    background: #e0e7ff;
+    border-color: #6366f1;
+}
+
+/* --- Status Bar --- */
+QStatusBar {
+    background-color: #0f0f11;
+    color: #a1a1aa;
+    border-top: 1px solid #27272a;
+}
+
+QStatusBar::item {
+    border: none;
+}
+
+/* --- Tooltips --- */
+QToolTip {
+    background-color: #18181b;
+    color: #f4f4f5;
+    border: 1px solid #3f3f46;
+    border-radius: 6px;
+    padding: 4px 8px;
+}

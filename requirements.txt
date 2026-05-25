@@ -1,0 +1,18 @@
+# Air Writing — Production-Quality Virtual Pen Application
+# Python 3.12+
+
+# Computer Vision
+opencv-python>=4.9.0
+
+# Hand Tracking
+mediapipe>=0.10.14
+
+# Numerical Computing
+numpy>=1.26.0
+scipy>=1.12.0
+
+# GUI Framework
+PyQt6>=6.6.0
+
+# Image Processing
+Pillow>=10.2.0
