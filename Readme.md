@@ -120,7 +120,7 @@ After launching:
 Example:
 
 ```md
-https://imgur.com/a/ytdcptv
+<blockquote class="imgur-embed-pub" lang="en" data-id="a/ytdcptv" data-context="false" ><a href="//imgur.com/a/ytdcptv"></a></blockquote><script async src="//s.imgur.com/min/embed.js" charset="utf-8"></script>
 ```
 
 ---
