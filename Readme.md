@@ -117,12 +117,10 @@ After launching:
 
 # 📸 Screenshots
 
-Add screenshots here for better presentation.
-
 Example:
 
 ```md
-![Demo](assets/demo.png)
+https://imgur.com/a/ytdcptv
 ```
 
 ---
