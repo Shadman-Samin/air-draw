@@ -120,7 +120,7 @@ After launching:
 Example:
 
 <a href="https://imgur.com/a/ytdcptv" target="_blank" rel="noopener noreferrer">
-View Image Album
+View Image
 </a>
 
 ---
