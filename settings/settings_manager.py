@@ -24,8 +24,8 @@ class SettingsManager:
     """
 
     def __init__(self, filename: str = "settings.json"):
-        # Store in user's profile folder under .airwriting
-        self._app_dir = Path.home() / ".airwriting"
+        # Store in user's profile folder under .airdraw
+        self._app_dir = Path.home() / ".airdraw"
         self._settings_path = self._app_dir / filename
         self._settings: dict[str, Any] = {}
         

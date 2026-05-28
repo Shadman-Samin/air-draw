@@ -15,7 +15,7 @@ from settings.settings_manager import SettingsManager
 from ui.main_window import MainWindow
 
 
-class AirWritingApplication:
+class AirDrawApplication:
     """
     Coordinates application startup, configuration loading, and teardown.
     """
@@ -35,7 +35,7 @@ class AirWritingApplication:
                 logging.StreamHandler(sys.stdout)
             ]
         )
-        self.logger = logging.getLogger("AirWritingApp")
+        self.logger = logging.getLogger("AirDrawApp")
         self.logger.info("Initializing system loggers...")
 
     def run(self) -> int:
@@ -45,11 +45,11 @@ class AirWritingApplication:
         Returns:
             Exit code integer.
         """
-        self.logger.info("Starting Air Writing Desktop Application...")
+        self.logger.info("Starting Air Draw Desktop Application...")
         
         # Create Qt Application instance
         self.app = QApplication(sys.argv)
-        self.app.setApplicationName("Air Writing")
+        self.app.setApplicationName("Air Draw")
         self.app.setOrganizationName("Antigravity CV")
         
         # Wire global uncaught exception handlers to avoid silent crashes

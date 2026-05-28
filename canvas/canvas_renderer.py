@@ -179,6 +179,7 @@ class CanvasRenderer:
         Overlay BGRA canvas onto BGR camera frame.
 
         Only processes pixels where canvas alpha > 0 for efficiency.
+        Optimized with fast integer blending.
         """
         h, w = frame_bgr.shape[:2]
         ch, cw = canvas_bgra.shape[:2]
@@ -191,7 +192,7 @@ class CanvasRenderer:
         alpha = canvas_bgra[:, :, 3]
 
         # Fast path: if canvas is entirely transparent, return camera frame
-        if not np.any(alpha):
+        if cv2.countNonZero(alpha) == 0:
             return frame_bgr.copy()
 
         # Find the active bounding box (ROI) of non-zero alpha pixels
@@ -210,15 +211,13 @@ class CanvasRenderer:
         canvas_bgr_roi = canvas_bgra[ry:ry+rh, rx:rx+rw, :3]
         frame_bgr_roi = frame_bgr[ry:ry+rh, rx:rx+rw]
 
-        # Create float alpha mask [0, 1] for ROI only
-        alpha_f = alpha_roi.astype(np.float32) / 255.0
-        alpha_3ch = alpha_f[:, :, np.newaxis]
+        # Fast integer blending to avoid expensive float conversions and allocations
+        alpha_3ch = alpha_roi[:, :, np.newaxis].astype(np.uint16)
+        canvas_roi_16 = canvas_bgr_roi.astype(np.uint16)
+        frame_roi_16 = frame_bgr_roi.astype(np.uint16)
 
-        # Blend ROI: result = canvas * alpha + frame * (1 - alpha)
-        canvas_roi_f = canvas_bgr_roi.astype(np.float32)
-        frame_roi_f = frame_bgr_roi.astype(np.float32)
-
-        blended_roi = canvas_roi_f * alpha_3ch + frame_roi_f * (1.0 - alpha_3ch)
+        # Blend: (canvas * alpha + frame * (255 - alpha)) // 255
+        blended_roi = (canvas_roi_16 * alpha_3ch + frame_roi_16 * (255 - alpha_3ch)) // 255
 
         # Paste blended ROI back into a copy of the camera frame
         result = frame_bgr.copy()

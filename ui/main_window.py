@@ -23,7 +23,7 @@ from ui.video_widget import VideoWidget
 
 class MainWindow(QMainWindow):
     """
-    Main shell container for the Air Writing application.
+    Main shell container for the Air Draw application.
 
     Orchestrates the layout of toolbar, video canvas, and status logs.
     Handles startup configuration and clean thread teardown on exit.
@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.settings = settings
         
-        self.setWindowTitle("Air Writing (Virtual Pen) — Enterprise Studio")
+        self.setWindowTitle("Air Draw (Virtual Pen) — Enterprise Studio")
         self.resize(1500, 850)
         self.setMinimumSize(1100, 650)
         

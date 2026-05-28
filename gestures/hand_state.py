@@ -59,40 +59,48 @@ class HandState:
             return FingerStates()
 
         lm = hand.landmarks
+        wrist = lm[HandLandmarks.WRIST]
 
         # ── Thumb ──
-        # Compare thumb tip X vs thumb IP X
-        # For right hand: tip.x > ip.x means extended
-        # For left hand: tip.x < ip.x means extended
-        # (frame is already mirrored, so MediaPipe "Right" = user's right)
+        # Vector from Pinky MCP to Index MCP (defines lateral direction towards thumb side)
+        pinky_mcp = lm[HandLandmarks.PINKY_MCP]
+        index_mcp = lm[HandLandmarks.INDEX_MCP]
+        lat_x = index_mcp.x - pinky_mcp.x
+        lat_y = index_mcp.y - pinky_mcp.y
+        lat_len = (lat_x**2 + lat_y**2)**0.5
+
+        # Vector from thumb IP to thumb TIP
         thumb_tip = lm[HandLandmarks.THUMB_TIP]
         thumb_ip = lm[HandLandmarks.THUMB_IP]
-        thumb_mcp = lm[HandLandmarks.THUMB_MCP]
+        thumb_x = thumb_tip.x - thumb_ip.x
+        thumb_y = thumb_tip.y - thumb_ip.y
+        thumb_len = (thumb_x**2 + thumb_y**2)**0.5
 
-        if hand.handedness == "Right":
-            thumb_extended = thumb_tip.x > thumb_ip.x
+        if lat_len > 0.0 and thumb_len > 0.0:
+            cos_angle = (lat_x * thumb_x + lat_y * thumb_y) / (lat_len * thumb_len)
+            thumb_extended = cos_angle > 0.15
         else:
-            thumb_extended = thumb_tip.x < thumb_ip.x
+            thumb_extended = False
 
         # ── Index finger ──
         index_tip = lm[HandLandmarks.INDEX_TIP]
         index_pip = lm[HandLandmarks.INDEX_PIP]
-        index_extended = index_tip.y < index_pip.y
+        index_extended = wrist.distance_to(index_tip) > wrist.distance_to(index_pip)
 
         # ── Middle finger ──
         middle_tip = lm[HandLandmarks.MIDDLE_TIP]
         middle_pip = lm[HandLandmarks.MIDDLE_PIP]
-        middle_extended = middle_tip.y < middle_pip.y
+        middle_extended = wrist.distance_to(middle_tip) > wrist.distance_to(middle_pip)
 
         # ── Ring finger ──
         ring_tip = lm[HandLandmarks.RING_TIP]
         ring_pip = lm[HandLandmarks.RING_PIP]
-        ring_extended = ring_tip.y < ring_pip.y
+        ring_extended = wrist.distance_to(ring_tip) > wrist.distance_to(ring_pip)
 
         # ── Pinky ──
         pinky_tip = lm[HandLandmarks.PINKY_TIP]
         pinky_pip = lm[HandLandmarks.PINKY_PIP]
-        pinky_extended = pinky_tip.y < pinky_pip.y
+        pinky_extended = wrist.distance_to(pinky_tip) > wrist.distance_to(pinky_pip)
 
         return FingerStates(
             thumb=thumb_extended,

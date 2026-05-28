@@ -226,12 +226,44 @@ class LayerStack:
         Alpha-composite src onto dst in-place.
 
         Uses standard Porter-Duff "over" operation.
+        Optimized to skip redundant calculations and focus on ROI.
         """
+        if src_opacity <= 0.0:
+            return
+
+        import cv2
         import numpy as np
 
-        # Extract alpha channels as float [0, 1]
-        src_alpha = src[:, :, 3:4].astype(np.float32) / 255.0 * src_opacity
-        dst_alpha = dst[:, :, 3:4].astype(np.float32) / 255.0
+        # 1. Early-exit if the source is completely transparent
+        src_mask = src[:, :, 3]
+        if cv2.countNonZero(src_mask) == 0:
+            return
+
+        # 2. Fast copy if the destination is completely transparent (common for bottom layer)
+        dst_mask = dst[:, :, 3]
+        if cv2.countNonZero(dst_mask) == 0:
+            if src_opacity == 1.0:
+                np.copyto(dst, src)
+            else:
+                dst[:, :, :3] = src[:, :, :3]
+                dst[:, :, 3] = (src[:, :, 3].astype(np.float32) * src_opacity).astype(np.uint8)
+            return
+
+        # 3. ROI Optimization: find bounding box containing all non-zero pixels
+        combined_mask = cv2.bitwise_or(src_mask, dst_mask)
+        coords = cv2.findNonZero(combined_mask)
+        if coords is None:
+            return
+
+        x, y, w, h = cv2.boundingRect(coords)
+
+        # Slice to ROI to minimize calculations
+        src_roi = src[y:y+h, x:x+w]
+        dst_roi = dst[y:y+h, x:x+w]
+
+        # Extract alpha channels as float [0, 1] for ROI only
+        src_alpha = src_roi[:, :, 3:4].astype(np.float32) / 255.0 * src_opacity
+        dst_alpha = dst_roi[:, :, 3:4].astype(np.float32) / 255.0
 
         # Compute output alpha
         out_alpha = src_alpha + dst_alpha * (1.0 - src_alpha)
@@ -240,11 +272,11 @@ class LayerStack:
         safe_alpha = np.maximum(out_alpha, 1e-6)
 
         # Composite RGB channels
-        dst[:, :, :3] = (
-            (src[:, :, :3].astype(np.float32) * src_alpha +
-             dst[:, :, :3].astype(np.float32) * dst_alpha * (1.0 - src_alpha))
+        dst_roi[:, :, :3] = (
+            (src_roi[:, :, :3].astype(np.float32) * src_alpha +
+             dst_roi[:, :, :3].astype(np.float32) * dst_alpha * (1.0 - src_alpha))
             / safe_alpha
         ).astype(np.uint8)
 
         # Set output alpha
-        dst[:, :, 3:4] = (out_alpha * 255.0).astype(np.uint8)
+        dst_roi[:, :, 3:4] = (out_alpha * 255.0).astype(np.uint8)

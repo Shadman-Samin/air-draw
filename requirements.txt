@@ -1,4 +1,4 @@
-# Air Writing — Production-Quality Virtual Pen Application
+# Air Draw — Production-Quality Virtual Pen Application
 # Python 3.12+
 
 # Computer Vision
