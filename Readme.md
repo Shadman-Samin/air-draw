@@ -118,7 +118,6 @@ After launching:
 # 📸 Screenshots
 
 Example:
-
 <a href="https://imgur.com/a/ytdcptv" target="_blank" rel="noopener noreferrer">
 View Image
 </a>
