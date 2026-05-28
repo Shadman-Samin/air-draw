@@ -119,7 +119,9 @@ After launching:
 
 Example:
 
-[https://imgur.com/a/ytdcptv](https://imgur.com/a/ytdcptv)
+<a href="https://imgur.com/a/ytdcptv" target="_blank" rel="noopener noreferrer">
+View Image Album
+</a>
 
 ---
 
