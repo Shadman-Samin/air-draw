@@ -77,29 +77,24 @@ air-draw/
 
 ## ⚙️ Installation & Setup
 
-### 1. Requirements
+### Requirements
 - **Python 3.12+**
 - **Webcam** (720p+ recommended)
-- **hand_landmarker.task** (MediaPipe Model)
 
-### 2. Quick Start
+### Quick Start
 ```bash
 # 1. Clone repository
 git clone https://github.com/Shadman-Samin/air-draw.git
 cd air-draw
 
-# 2. Download MediaPipe model
-# Download 'hand_landmarker.task' from Google's MediaPipe documentation
-# and place it in the root folder.
-
-# 3. Setup Virtual Environment
+# 2. Setup Virtual Environment
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# 4. Install Dependencies
+# 3. Install Dependencies
 pip install -r requirements.txt
 
-# 5. Run
+# 4. Run (MediaPipe model downloads automatically on first launch)
 python main.py
 ```
 

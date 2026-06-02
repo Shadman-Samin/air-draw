@@ -8,6 +8,9 @@ Extracts 21 landmarks per hand, handedness, and confidence scores.
 from __future__ import annotations
 
 import logging
+import os
+import sys
+import urllib.request
 
 import cv2
 import mediapipe as mp
@@ -59,12 +62,63 @@ class HandTracker(BaseTracker):
         self._landmarker: vision.HandLandmarker | None = None
         self._rgb_buffer: np.ndarray | None = None
 
+    MODEL_URL = (
+        "https://storage.googleapis.com/mediapipe-models/"
+        "hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
+    )
+    MODEL_FILENAME = "hand_landmarker.task"
+
+    @staticmethod
+    def _ensure_model_exists() -> None:
+        """Auto-download the MediaPipe model if not present."""
+        if os.path.exists(HandTracker.MODEL_FILENAME):
+            return
+
+        url = HandTracker.MODEL_URL
+        temp_file = HandTracker.MODEL_FILENAME + ".tmp"
+
+        def _reporthook(count, block_size, total_size):
+            downloaded = count * block_size / (1024 * 1024)
+            total = total_size / (1024 * 1024) if total_size > 0 else 0
+            if total > 0:
+                percent = count * block_size * 100 / total_size
+                bar_len = 30
+                filled = int(bar_len * percent / 100)
+                bar = "█" * filled + "─" * (bar_len - filled)
+                sys.stdout.write(
+                    f"\r  Downloading {HandTracker.MODEL_FILENAME} ... "
+                    f"|{bar}| {downloaded:.1f}/{total:.1f} MB ({percent:.0f}%)"
+                )
+            else:
+                sys.stdout.write(
+                    f"\r  Downloading {HandTracker.MODEL_FILENAME} ... "
+                    f"{downloaded:.1f} MB downloaded"
+                )
+            sys.stdout.flush()
+
+        logger.info("Model not found — downloading %s ...", HandTracker.MODEL_FILENAME)
+        try:
+            urllib.request.urlretrieve(url, temp_file, _reporthook)
+            print()
+            os.replace(temp_file, HandTracker.MODEL_FILENAME)
+            logger.info("Download complete: %s", HandTracker.MODEL_FILENAME)
+        except Exception:
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+            logger.exception(
+                "Failed to download %s. Please download manually from:\n%s",
+                HandTracker.MODEL_FILENAME,
+                "https://developers.google.com/mediapipe/solutions/vision/hand_landmarker#models",
+            )
+            raise
+
     def start(self) -> None:
         """Initialize the MediaPipe Hands detector."""
         super().start()
-        
+        self._ensure_model_exists()
+
         # Configure HandLandmarker
-        base_options = python.BaseOptions(model_asset_path='hand_landmarker.task')
+        base_options = python.BaseOptions(model_asset_path=self.MODEL_FILENAME)
         options = vision.HandLandmarkerOptions(
             base_options=base_options,
             running_mode=vision.RunningMode.VIDEO,
