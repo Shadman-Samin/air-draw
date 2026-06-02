@@ -19,6 +19,8 @@ from app.constants import TrackingMode
 from canvas.canvas_manager import CanvasManager
 from canvas.canvas_renderer import CanvasRenderer
 from core.events import events
+from core.multi_hand_controller import MultiHandController
+from drawing.shape_renderer import ShapeRenderer
 from filters.filter_chain import FilterChain
 from gestures.gesture_recognizer import GestureRecognizer
 from gestures.gesture_types import GestureState, GestureType
@@ -41,11 +43,17 @@ class ProcessingPipeline(QThread):
         self.settings = settings
         self._running = False
         
-        # Core CV Engines
+        track_w, track_h = 0, 0
+        if self.settings.get("performance.tracking_downscale", True):
+            track_w = self.settings.get("performance.tracking_width", 640)
+            track_h = self.settings.get("performance.tracking_height", 480)
+
         self.hand_tracker = HandTracker(
-            max_hands=self.settings.get("hand_tracking.max_num_hands"),
+            max_hands=self.settings.get("hand_tracking.max_num_hands", 2),
             detection_confidence=self.settings.get("hand_tracking.min_detection_confidence"),
             tracking_confidence=self.settings.get("hand_tracking.min_tracking_confidence"),
+            tracking_width=track_w,
+            tracking_height=track_h,
         )
         self.color_tracker = ColorTracker(
             hsv_lower=self.settings.get("color_tracking.hsv_lower"),
@@ -61,6 +69,8 @@ class ProcessingPipeline(QThread):
         # Core systems
         self.gesture_recognizer = GestureRecognizer()
         self.filter_chain = FilterChain()
+        self.multi_hand = MultiHandController()
+        self._multi_hand_enabled = bool(self.settings.get("multi_hand.enabled", True))
         self.canvas_manager = CanvasManager(
             width=self.settings.get("camera.width"),
             height=self.settings.get("camera.height"),
@@ -69,7 +79,16 @@ class ProcessingPipeline(QThread):
             width=self.settings.get("camera.width"),
             height=self.settings.get("camera.height"),
         )
-        
+        self.canvas_manager.brush_size = self.settings.get("drawing.brush_size", 6)
+        self.canvas_manager.brush_color = tuple(
+            self.settings.get("drawing.brush_color_bgr", [50, 50, 255]),
+        )
+        self.canvas_manager.eraser_size = self.settings.get("drawing.eraser_size", 28)
+        self.canvas_manager.drawing_tool = self.settings.get("drawing.active_tool", "freehand")
+        self.canvas_manager.secondary_brush_color = tuple(
+            self.settings.get("multi_hand.secondary_color_bgr", [50, 200, 255]),
+        )
+
         # Video Capture Device
         self.cap = None
         
@@ -79,10 +98,11 @@ class ProcessingPipeline(QThread):
         self._target_height = self.settings.get("camera.height")
         self._mirror = self.settings.get("camera.mirror")
         self._canvas_mutex = QMutex()
-        
+        self._whiteboard_mode = bool(self.settings.get("whiteboard.enabled", False))
+
         # Drawing session tracking
         self._is_drawing_stroke = False
-        
+
         # Wire settings change listeners
         self._connect_signals()
 
@@ -94,6 +114,38 @@ class ProcessingPipeline(QThread):
         events.brush_type_changed.connect(self.set_brush_type)
         events.tracking_mode_changed.connect(self.set_tracking_mode)
         events.canvas_cleared.connect(self.clear_canvas)
+        events.canvas_save_requested.connect(self.save_canvas)
+        events.whiteboard_mode_changed.connect(self.set_whiteboard_mode)
+        events.drawing_tool_changed.connect(self.set_drawing_tool)
+        events.multi_hand_changed.connect(self.set_multi_hand_mode)
+
+    @pyqtSlot(str)
+    def set_drawing_tool(self, tool: str) -> None:
+        self.canvas_manager.drawing_tool = tool
+        events.status_message.emit(f"Tool: {tool.title()}", 1500)
+
+    @pyqtSlot(bool)
+    def set_multi_hand_mode(self, enabled: bool) -> None:
+        self._multi_hand_enabled = enabled
+        self.settings.set("multi_hand.enabled", enabled)
+        self.filter_chain.reset()
+        self.multi_hand.reset_all()
+        label = "Multi-hand ON" if enabled else "Single-hand mode"
+        events.status_message.emit(label, 2000)
+
+    @pyqtSlot(str)
+    def save_canvas(self, filepath: str) -> None:
+        bg = tuple(self.settings.get("whiteboard.background_bgr", [255, 255, 255]))
+        with QMutexLocker(self._canvas_mutex):
+            ok = self.canvas_manager.save_to_file(filepath, bg)
+        events.status_message.emit(
+            f"Saved: {filepath}" if ok else "Save failed.", 4000 if ok else 3000,
+        )
+
+    @pyqtSlot(bool)
+    def set_whiteboard_mode(self, enabled: bool) -> None:
+        self._whiteboard_mode = enabled
+        self.settings.set("whiteboard.enabled", enabled)
 
     @pyqtSlot(tuple)
     def set_brush_color(self, bgr_color: tuple[int, int, int]) -> None:
@@ -143,8 +195,8 @@ class ProcessingPipeline(QThread):
             self.current_mode = TrackingMode.COLOR
             self.active_tracker = self.color_tracker
         
-        # Reset filters to avoid projection jump
         self.filter_chain.reset()
+        self.multi_hand.reset_all()
         self._is_drawing_stroke = False
         events.status_message.emit(f"Switched tracking to: {mode_str.upper()}", 2000)
 
@@ -207,46 +259,85 @@ class ProcessingPipeline(QThread):
                 timestamp_ms = int(time.perf_counter() * 1000)
                 tracking_result = self.active_tracker.process_frame(frame, timestamp_ms)
 
-                # 3. Gesture Recognition
                 gesture_state = GestureState(gesture=GestureType.PAUSE)
-                raw_pt = None
                 smoothed_pt = None
+                cursor_pt = None
+                use_multi = False
+                hand_inputs: list[
+                    tuple[Point2D | None, GestureState, tuple[int, int, int] | None]
+                ] = []
 
-                if tracking_result.has_hands:
+                if tracking_result.has_hands and self.current_mode == TrackingMode.HAND:
+                    use_multi = self._multi_hand_enabled
+                    if use_multi:
+                        for idx, pt, gs in self.multi_hand.process(tracking_result):
+                            sec = tuple(self.canvas_manager.secondary_brush_color)
+                            color = None if idx == 0 else sec
+                            hand_inputs.append((pt, gs, color))
+                        if hand_inputs:
+                            gesture_state = hand_inputs[0][1]
+                            smoothed_pt = hand_inputs[0][0]
+                            cursor_pt = smoothed_pt
+                    else:
+                        hand = tracking_result.primary_hand
+                        if hand is not None:
+                            gesture_state = self.gesture_recognizer.update(tracking_result)
+                            raw_pt = hand.index_tip
+                            if raw_pt is not None:
+                                smoothed_pt = self.filter_chain.process(raw_pt)
+                                cursor_pt = smoothed_pt
+                            else:
+                                self.filter_chain.reset()
+                            hand_inputs.append((smoothed_pt or raw_pt, gesture_state, None))
+
+                elif tracking_result.has_hands and self.current_mode == TrackingMode.COLOR:
                     hand = tracking_result.primary_hand
                     if hand is not None:
-                        # In HAND mode, GestureRecognizer processes standard hand state
-                        # In COLOR mode, HandState contains virtual hand with points clustered on centroid,
-                        # which triggers GestureType.DRAW by default because the fingers are "closed" (clustered).
-                        if self.current_mode == TrackingMode.HAND:
-                            gesture_state = self.gesture_recognizer.update(tracking_result)
-                        else:
-                            # In color mode, we are always drawing when object is visible
-                            gesture_state = GestureState(gesture=GestureType.DRAW)
-                        
+                        gesture_state = GestureState(gesture=GestureType.DRAW)
                         raw_pt = hand.index_tip
-
-                # 4. Filter coordinate and update Canvas Drawing
-                if raw_pt is not None:
-                    # Apply smoothing filter chain to index tip position
-                    smoothed_pt = self.filter_chain.process(raw_pt)
+                        if raw_pt is not None:
+                            smoothed_pt = self.filter_chain.process(raw_pt)
+                            cursor_pt = smoothed_pt
+                        else:
+                            self.filter_chain.reset()
+                        hand_inputs.append((smoothed_pt or raw_pt, gesture_state, None))
                 else:
                     self.filter_chain.reset()
+                    self.multi_hand.reset_all()
 
-                # Perform drawing operations and alpha layer rendering under a thread safety lock
+                if cursor_pt is None and tracking_result.primary_fingertip is not None:
+                    cursor_pt = tracking_result.primary_fingertip
+
+                shape_preview = None
                 with QMutexLocker(self._canvas_mutex):
-                    # Delegate drawing actions to canvas manager's robust state machine
-                    self.canvas_manager.handle_input(smoothed_pt or raw_pt, gesture_state)
+                    for idx, (pt, gs, color) in enumerate(hand_inputs):
+                        self.canvas_manager.handle_input(pt, gs, color, hand_id=idx)
 
-                    # 5. Composite Drawing Layers over Camera Feed
-                    overlay_frame = self.renderer.render_frame(frame, self.canvas_manager.layer_stack)
+                    shape_preview = self.canvas_manager.shape_preview
 
-                # Query state changes and broadcast undo/redo availability signals
+                    wb_bg = tuple(self.settings.get("whiteboard.background_bgr", [255, 255, 255]))
+                    overlay_frame = self.renderer.render_frame(
+                        frame,
+                        self.canvas_manager.layer_stack,
+                        whiteboard_mode=self._whiteboard_mode,
+                        whiteboard_bg=wb_bg,
+                        show_grid=self.settings.get("whiteboard.show_grid", True),
+                    )
+
                 events.undo_available.emit(len(self.canvas_manager._undo_stack) > 0)
                 events.redo_available.emit(len(self.canvas_manager._redo_stack) > 0)
 
-                # 6. Draw visual annotations (Landmarks, pointer cursor, status HUD) on frame
-                self._render_hud_overlays(overlay_frame, tracking_result, gesture_state, smoothed_pt or raw_pt)
+                self._render_hud_overlays(
+                    overlay_frame, tracking_result, gesture_state, cursor_pt,
+                    hand_inputs=hand_inputs if use_multi else None,
+                )
+
+                if shape_preview is not None:
+                    anchor, current, tool_name = shape_preview
+                    ShapeRenderer.draw_frame_preview(
+                        overlay_frame, tool_name, anchor, current,
+                        self.canvas_manager.brush_color,
+                    )
 
                 # 7. FPS Calculations
                 frame_count += 1
@@ -297,6 +388,7 @@ class ProcessingPipeline(QThread):
         tracking_result: TrackingResult,
         gesture_state: GestureState,
         active_point: Point2D | None,
+        hand_inputs: list | None = None,
     ) -> None:
         """
         Draws visual feedback overlays directly onto BGR frame:
@@ -309,8 +401,6 @@ class ProcessingPipeline(QThread):
 
         # Draw tracking guides
         if tracking_result.has_hands:
-            hand = tracking_result.primary_hand
-            
             # --- Hand Landmarks Rendering ---
             if self.current_mode == TrackingMode.HAND and self.settings.get("ui.show_landmarks"):
                 # Connect key landmarks with color schemes based on gesture
@@ -321,10 +411,16 @@ class ProcessingPipeline(QThread):
                     GestureType.PAUSE: (150, 150, 150),  # Grey
                     GestureType.CLEAR: (255, 50, 255),   # Magenta
                 }
-                l_color = color_map.get(gesture_state.gesture, (255, 255, 255))
-                
-                # Draw joint segments
-                self._draw_hand_skeleton(frame, hand, l_color)
+
+                # Draw skeleton for every detected hand
+                for i, hand in enumerate(tracking_result.hands):
+                    # Determine per-hand gesture color from hand_inputs if available
+                    if hand_inputs and i < len(hand_inputs):
+                        h_gs = hand_inputs[i][1]
+                        l_color = color_map.get(h_gs.gesture, (255, 255, 255))
+                    else:
+                        l_color = color_map.get(gesture_state.gesture, (255, 255, 255))
+                    self._draw_hand_skeleton(frame, hand, l_color)
 
             # --- Color Mode Guide Rendering ---
             elif self.current_mode == TrackingMode.COLOR:
@@ -335,25 +431,30 @@ class ProcessingPipeline(QThread):
                     cv2.drawMarker(frame, (cx, cy), (0, 255, 255), cv2.MARKER_CROSS, 20, 2, cv2.LINE_AA)
 
         # --- Interactive Hover Pointer Cursors ---
-        if active_point is not None:
-            cx, cy = active_point.as_int_tuple()
-            if 0 <= cx < w and 0 <= cy < h:
-                if gesture_state.gesture == GestureType.DRAW:
-                    # Draw a cursor that previews brush color and size
-                    bgr_col = self.canvas_manager.brush_color
-                    brush_size = self.canvas_manager.brush_size
-                    # Preview outline
-                    cv2.circle(frame, (cx, cy), max(brush_size // 2, 2), bgr_col, -1, cv2.LINE_AA)
-                    cv2.circle(frame, (cx, cy), max(brush_size // 2, 2) + 2, (255, 255, 255), 1, cv2.LINE_AA)
-                elif gesture_state.gesture == GestureType.ERASE:
-                    # Eraser circle guide
-                    er_size = self.canvas_manager.eraser_size
-                    cv2.circle(frame, (cx, cy), er_size, (50, 50, 255), 1, cv2.LINE_AA)
-                    cv2.drawMarker(frame, (cx, cy), (50, 50, 255), cv2.MARKER_CROSS, 10, 1, cv2.LINE_AA)
-                elif gesture_state.gesture == GestureType.CURSOR:
-                    # Subtle cyan reticle
-                    cv2.circle(frame, (cx, cy), 8, (255, 200, 50), 1, cv2.LINE_AA)
-                    cv2.circle(frame, (cx, cy), 2, (255, 200, 50), -1, cv2.LINE_AA)
+        cursors_to_draw: list[tuple[Point2D, GestureState, tuple[int, int, int] | None]] = []
+        if hand_inputs:
+            for pt, gs, color in hand_inputs:
+                if pt is not None:
+                    cursors_to_draw.append((pt, gs, color))
+        elif active_point is not None:
+            cursors_to_draw.append((active_point, gesture_state, None))
+
+        for pt, gs, color_override in cursors_to_draw:
+            cx, cy = pt.as_int_tuple()
+            if not (0 <= cx < w and 0 <= cy < h):
+                continue
+            bgr_col = color_override if color_override is not None else self.canvas_manager.brush_color
+            if gs.gesture == GestureType.DRAW:
+                brush_size = self.canvas_manager.brush_size
+                cv2.circle(frame, (cx, cy), max(brush_size // 2, 2), bgr_col, -1, cv2.LINE_AA)
+                cv2.circle(frame, (cx, cy), max(brush_size // 2, 2) + 2, (255, 255, 255), 1, cv2.LINE_AA)
+            elif gs.gesture == GestureType.ERASE:
+                er_size = self.canvas_manager.eraser_size
+                cv2.circle(frame, (cx, cy), er_size, (50, 50, 255), 2, cv2.LINE_AA)
+                cv2.drawMarker(frame, (cx, cy), (50, 50, 255), cv2.MARKER_CROSS, 10, 1, cv2.LINE_AA)
+            elif gs.gesture == GestureType.CURSOR:
+                cv2.circle(frame, (cx, cy), 8, (255, 200, 50), 1, cv2.LINE_AA)
+                cv2.circle(frame, (cx, cy), 2, (255, 200, 50), -1, cv2.LINE_AA)
 
         # --- Gesture Status Banner (Bottom Left) ---
         if self.settings.get("ui.show_gesture_overlay"):

@@ -18,7 +18,6 @@ import numpy as np
 from tracking.base_tracker import BaseTracker
 from tracking.tracking_result import (
     HandLandmarks,
-    NormalizedPoint,
     Point2D,
     TrackingResult,
 )
@@ -40,6 +39,8 @@ class HandTracker(BaseTracker):
         detection_confidence: float = 0.7,
         tracking_confidence: float = 0.5,
         model_complexity: int = 1,
+        tracking_width: int = 0,
+        tracking_height: int = 0,
     ):
         """
         Args:
@@ -53,7 +54,10 @@ class HandTracker(BaseTracker):
         self._detection_confidence = detection_confidence
         self._tracking_confidence = tracking_confidence
         self._model_complexity = model_complexity
+        self._tracking_width = tracking_width
+        self._tracking_height = tracking_height
         self._landmarker: vision.HandLandmarker | None = None
+        self._rgb_buffer: np.ndarray | None = None
 
     def start(self) -> None:
         """Initialize the MediaPipe Hands detector."""
@@ -107,12 +111,30 @@ class HandTracker(BaseTracker):
             return TrackingResult(timestamp_ms=timestamp_ms)
 
         h, w = frame.shape[:2]
+        scale_x, scale_y = 1.0, 1.0
+        track_frame = frame
 
-        # MediaPipe expects RGB input
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # Downscale for faster inference; map landmarks back to full resolution
+        if self._tracking_width > 0 and self._tracking_height > 0:
+            if w != self._tracking_width or h != self._tracking_height:
+                track_frame = cv2.resize(
+                    frame, (self._tracking_width, self._tracking_height),
+                    interpolation=cv2.INTER_LINEAR,
+                )
+                scale_x = w / self._tracking_width
+                scale_y = h / self._tracking_height
 
-        # Convert OpenCV frame to MediaPipe Image
-        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=rgb_frame)
+        th, tw = track_frame.shape[:2]
+
+        # Reuse RGB buffer when dimensions match
+        if self._rgb_buffer is None or self._rgb_buffer.shape[:2] != (th, tw):
+            self._rgb_buffer = np.empty((th, tw, 3), dtype=np.uint8)
+
+        cv2.cvtColor(track_frame, cv2.COLOR_BGR2RGB, dst=self._rgb_buffer)
+        mp_image = mp.Image(
+            image_format=mp.ImageFormat.SRGB,
+            data=np.ascontiguousarray(self._rgb_buffer),
+        )
 
         # Perform synchronous detection for video running mode
         results = self._landmarker.detect_for_video(mp_image, timestamp_ms)
@@ -135,12 +157,16 @@ class HandTracker(BaseTracker):
 
                 # Convert normalized landmarks to pixel coordinates
                 pixel_landmarks: list[Point2D] = []
+                z_coords: list[float] = []
                 for lm in hand_landmarks:
-                    point = NormalizedPoint(x=lm.x, y=lm.y, z=lm.z)
-                    pixel_landmarks.append(point.to_pixel(w, h))
+                    px = lm.x * tw * scale_x
+                    py = lm.y * th * scale_y
+                    pixel_landmarks.append(Point2D(x=px, y=py))
+                    z_coords.append(lm.z)
 
                 hand = HandLandmarks(
                     landmarks=pixel_landmarks,
+                    z_coords=z_coords,
                     handedness=hand_label,
                     confidence=confidence,
                 )

@@ -18,6 +18,11 @@ QFrame#control_panel, QFrame#toolbar_frame {
     padding: 6px;
 }
 
+QScrollArea {
+    background: transparent;
+    border: none;
+}
+
 QFrame#status_panel {
     background-color: #121214;
     border-top: 1px solid #27272a;
@@ -77,6 +82,13 @@ QPushButton#accent_btn:hover {
 
 QPushButton#accent_btn:pressed {
     background-color: #3730a3;
+}
+
+/* Compact drawing-tool buttons in sidebar */
+QPushButton#tool_btn {
+    padding: 6px 8px;
+    font-size: 12px;
+    min-height: 16px;
 }
 
 /* Toggle / Action Buttons (e.g. Toolbar tools) */

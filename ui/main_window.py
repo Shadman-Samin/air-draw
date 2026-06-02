@@ -66,7 +66,7 @@ class MainWindow(QMainWindow):
         splitter.setChildrenCollapsible(False)
         
         # Left sidebar toolbar panel
-        self.toolbar = DrawingToolbar(self)
+        self.toolbar = DrawingToolbar(self.settings, self)
         self.toolbar.setMaximumWidth(380)
         self.toolbar.setMinimumWidth(280)
         

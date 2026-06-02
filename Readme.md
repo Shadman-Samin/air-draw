@@ -1,86 +1,75 @@
-# Air Draw 🎨✋
+# Air Draw
 
-A real-time virtual drawing application built with Python, OpenCV, and hand tracking.  
-Draw in the air using your fingers through your webcam — no mouse, no touchscreen required.
+Real-time virtual drawing application using hand tracking via webcam.  
+Draw in the air with your fingers — no mouse, no touchscreen required.
 
----
-
-# 📌 Features
-
-- ✍️ Draw in the air using hand gestures
-- 🖐️ Real-time hand tracking
-- 🎨 Multiple drawing colors
-- 🧽 Eraser mode
-- 📷 Webcam-based interaction
-- ⚡ Smooth and responsive drawing experience
-- 🪄 Gesture-controlled UI
-- 💻 Lightweight and easy to run
+Built with **Python**, **MediaPipe Tasks** (HandLandmarker), **OpenCV**, and **PyQt6**.
 
 ---
 
-# 🧠 How It Works
+## Features
 
-The application uses:
-
-- **OpenCV** for video processing and drawing
-- **MediaPipe** for hand detection and landmark tracking
-- Finger position tracking to simulate drawing in the air
-
-The webcam captures live video frames, detects your hand landmarks, and tracks fingertip movement to create virtual drawings on the screen.
-
----
-
-# 🛠️ Tech Stack
-
-| Technology | Purpose |
-|---|---|
-| Python | Core programming language |
-| OpenCV | Video processing & rendering |
-| MediaPipe | Hand tracking & landmark detection |
-| NumPy | Frame manipulation & calculations |
+- Hand tracking via webcam with up to **2 hands** simultaneously
+- Multi-hand drawing — each hand draws independently with its own color
+- Shape tools — line, rectangle, circle, arrow
+- Eraser mode
+- Gesture-controlled undo / redo / clear canvas
+- Adjustable brush size and color
+- Smoothing filters (Kalman, EMA, deadzone) for jitter-free strokes
+- Virtual whiteboard mode
+- Real-time FPS display
+- Persistent settings saved to `~/.airdraw/settings.json`
 
 ---
 
-# 📂 Project Structure
+## Project Structure
 
-```bash
+```
 air-draw/
-│
-├── main.py                # Main application file
-├── requirements.txt       # Dependencies
-├── assets/                # Images/icons (if any)
-├── utils/                 # Helper modules
-└── README.md
+├── main.py                  # Entry point
+├── app/                     # Application bootstrap and constants
+├── canvas/                  # Drawing canvas, layer stack, rendering
+├── core/                    # Processing pipeline, multi-hand controller, events
+├── drawing/                 # Brush engine, stroke builder, shape renderer
+├── filters/                 # Smoothing filters (Kalman, EMA, deadzone)
+├── gestures/                # Gesture recognition per hand
+├── settings/                # Persistent JSON settings manager
+├── tracking/                # Hand tracker (MediaPipe) and color tracker
+├── ui/                      # PyQt6 widgets (main window, toolbar, video, status)
+└── tests/                   # Accuracy, performance, and shape tests
 ```
 
 ---
 
-# ⚙️ Installation
+## Installation
 
-## 1️⃣ Clone the repository
+### 1. Clone
 
 ```bash
 git clone https://github.com/Shadman-Samin/air-draw.git
 cd air-draw
 ```
 
-## 2️⃣ Create virtual environment (recommended)
+### 2. Download MediaPipe model
 
-### Windows
+Place `hand_landmarker.task` in the project root.  
+Download from [MediaPipe Models](https://developers.google.com/mediapipe/solutions/vision/hand_landmarker#models).
 
+### 3. Create virtual environment (recommended)
+
+**Windows:**
 ```bash
 python -m venv venv
 venv\Scripts\activate
 ```
 
-### Linux / macOS
-
+**Linux / macOS:**
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
 
-## 3️⃣ Install dependencies
+### 4. Install dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -88,151 +77,73 @@ pip install -r requirements.txt
 
 ---
 
-# ▶️ Run the Project
+## Usage
 
 ```bash
 python main.py
 ```
 
-After launching:
-
-1. Your webcam will open
-2. Show your hand to the camera
-3. Use finger gestures to draw in the air
+- Show your hand to the camera
+- Use index finger to draw
+- Switch tools via the toolbar
+- Toggle multi-hand for simultaneous drawing
 
 ---
 
-# ✋ Gesture Controls
+## Gesture Controls
+
+### Primary hand (full gesture set)
 
 | Gesture | Action |
 |---|---|
-| Index finger up | Draw |
-| Index + middle finger up | Selection mode |
-| Eraser gesture | Erase drawing |
-| Closed hand | Stop drawing |
+| Index finger up | Draw / shape anchor |
+| Index + middle up | Cursor (move, no drawing) |
+| Open palm (all fingers) | Pause |
+| Closed fist | Eraser mode |
+| Three fingers | Undo (single-shot) |
+| Four fingers | Redo (single-shot) |
+| Palm hold (sustained) | Clear canvas |
 
-> Actual gestures may vary depending on implementation.
+### Secondary hand (multi-hand mode only)
 
----
-
-# 📸 Screenshots
-
-Example:
-<a href="https://imgur.com/a/ytdcptv" target="_blank" rel="noopener noreferrer">
-View Image
-</a>
-
----
-
-# 🚀 Future Improvements
-
-- Save drawings as images
-- Adjustable brush size
-- Shape drawing support
-- Gesture-based undo/redo
-- Multi-hand support
-- AI-assisted drawing recognition
-- Virtual whiteboard mode
+| Gesture | Action |
+|---|---|
+| Index finger up | Draw (secondary color) |
+| Closed fist | Erase |
+| Any other | Cursor |
 
 ---
 
-# 🧪 Requirements
+## Shape Tools
 
-- Python 3.9+
+Select from the toolbar: **line**, **rectangle**, **circle**, **arrow**.
+
+1. Point with index finger to set the anchor
+2. Move your finger to define the shape
+3. Release (change gesture) to commit
+
+---
+
+## Tech Stack
+
+| Component | Library |
+|---|---|
+| Hand tracking | MediaPipe Tasks HandLandmarker |
+| Video processing | OpenCV |
+| GUI | PyQt6 |
+| Numerical | NumPy, SciPy |
+| Image export | Pillow |
+
+---
+
+## Requirements
+
+- Python 3.12+
 - Webcam
-- Good lighting for accurate hand tracking
+- Good lighting for accurate tracking
 
 ---
 
-# 📦 Dependencies
+## License
 
-Example dependencies:
-
-```txt
-opencv-python
-mediapipe
-numpy
-```
-
-Install manually if needed:
-
-```bash
-pip install opencv-python mediapipe numpy
-```
-
----
-
-# 🐞 Common Issues
-
-## Webcam not opening
-
-Make sure:
-- Webcam permissions are enabled
-- No other application is using the camera
-
-## Hand not detected properly
-
-- Improve room lighting
-- Keep your hand inside the camera frame
-- Avoid cluttered backgrounds
-
----
-
-# 🤝 Contributing
-
-Contributions are welcome.
-
-1. Fork the repository
-2. Create a feature branch
-
-```bash
-git checkout -b feature-name
-```
-
-3. Commit your changes
-
-```bash
-git commit -m "Added new feature"
-```
-
-4. Push to your branch
-
-```bash
-git push origin feature-name
-```
-
-5. Open a Pull Request
-
----
-
-# 📄 License
-
-This project is licensed under the MIT License.
-
----
-
-# 👨‍💻 Author
-
-Made by [Shadman Samin](https://github.com/Shadman-Samin)
-
-If you like this project, consider giving it a ⭐ on GitHub.
-
----
-
-# 🌟 Demo Ideas
-
-Possible use cases:
-
-- Virtual whiteboard
-- Teaching & presentations
-- Fun drawing application
-- Gesture interaction experiments
-- Computer vision learning project
-
----
-
-# 📚 Learning Resources
-
-- [OpenCV Documentation](https://opencv.org/)
-- [MediaPipe Documentation](https://developers.google.com/mediapipe)
-- [Python Official Website](https://www.python.org/)
+MIT License

@@ -1,0 +1,23 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# Test cache
+.pytest_cache/
+
+# MediaPipe model (downloaded separately)
+hand_landmarker.task
+
+# User settings (personal config)
+.airdraw/
+
+# opencode agent config
+AGENTS.md

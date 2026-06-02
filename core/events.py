@@ -55,6 +55,18 @@ class EventHub(QObject):
     canvas_cleared = pyqtSignal()
     layer_stack_changed = pyqtSignal()
 
+    # Save canvas to file: (filepath)
+    canvas_save_requested = pyqtSignal(str)
+
+    # Drawing tool: ("freehand", "line", "rectangle", "circle", "arrow")
+    drawing_tool_changed = pyqtSignal(str)
+
+    # Whiteboard mode toggle: (enabled)
+    whiteboard_mode_changed = pyqtSignal(bool)
+
+    # Multi-hand mode toggle: (enabled)
+    multi_hand_changed = pyqtSignal(bool)
+
     # --- System Status ---
     # Messages to render in status bars or logs: (message, duration_ms)
     status_message = pyqtSignal(str, int)

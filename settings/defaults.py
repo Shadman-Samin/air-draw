@@ -13,17 +13,38 @@ DEFAULT_SETTINGS = {
         "device_index": 0,
         "width": 1280,
         "height": 720,
-        "fps": 30,
+        "fps": 60,
         "mirror": True,
         "auto_exposure": True,
     },
     
     # Hand Tracking
     "hand_tracking": {
-        "max_num_hands": 1,
-        "min_detection_confidence": 0.6,
-        "min_tracking_confidence": 0.5,
+        "max_num_hands": 2,
+        "min_detection_confidence": 0.65,
+        "min_tracking_confidence": 0.55,
         "model_complexity": 1,
+    },
+
+    # Multi-hand drawing
+    "multi_hand": {
+        "enabled": True,
+        "secondary_draws": True,
+        "secondary_color_bgr": [50, 200, 255],
+    },
+
+    # Virtual whiteboard display mode
+    "whiteboard": {
+        "enabled": False,
+        "show_grid": True,
+        "background_bgr": [255, 255, 255],
+    },
+
+    # Performance tuning
+    "performance": {
+        "tracking_downscale": True,
+        "tracking_width": 640,
+        "tracking_height": 480,
     },
     
     # Color Tracking
@@ -39,14 +60,14 @@ DEFAULT_SETTINGS = {
     "filtering": {
         "active_filters": ["kalman", "ema", "deadzone"],
         "kalman": {
-            "process_noise": 0.03,      # Q - dynamic movement uncertainty (lower = smoother/more lag)
-            "measurement_noise": 1.5,   # R - sensor noise (higher = smoother)
+            "process_noise": 0.02,
+            "measurement_noise": 1.2,
         },
         "ema": {
-            "alpha": 0.35,              # Coefficient for EMA filter (lower = smoother/more lag)
+            "alpha": 0.4,
         },
         "deadzone": {
-            "threshold": 2.2,           # Pixels of movement required to break stasis
+            "threshold": 2.0,
         }
     },
     
@@ -61,10 +82,11 @@ DEFAULT_SETTINGS = {
     # Drawing & Brushes
     "drawing": {
         "active_brush": "pen",
-        "brush_size": 6,                # In pixels
-        "brush_opacity": 1.0,           # [0.0, 1.0]
-        "brush_color_bgr": [50, 50, 255], # Bright Red
-        "eraser_size": 28,              # Erasing diameter
+        "active_tool": "freehand",
+        "brush_size": 6,
+        "brush_opacity": 1.0,
+        "brush_color_bgr": [50, 50, 255],
+        "eraser_size": 28,
     },
     
     # UI/UX Preferences

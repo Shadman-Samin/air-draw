@@ -59,8 +59,15 @@ class HandLandmarks:
     handedness label, and detection confidence.
     """
     landmarks: list[Point2D] = field(default_factory=list)
+    z_coords: list[float] = field(default_factory=list)
     handedness: str = "Right"  # "Left" or "Right"
     confidence: float = 0.0
+
+    def landmark_z(self, index: int) -> float:
+        """MediaPipe depth at landmark (smaller = closer to camera)."""
+        if 0 <= index < len(self.z_coords):
+            return self.z_coords[index]
+        return 0.0
 
     # Key landmark indices (MediaPipe convention)
     WRIST = 0

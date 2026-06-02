@@ -130,6 +130,9 @@ class CanvasRenderer:
         brush_size: int = 4,
         brush_color: tuple[int, int, int] = (50, 50, 255),
         show_cursor: bool = True,
+        whiteboard_mode: bool = False,
+        whiteboard_bg: tuple[int, int, int] = (255, 255, 255),
+        show_grid: bool = True,
     ) -> np.ndarray:
         """
         Produce the final display frame.
@@ -157,11 +160,15 @@ class CanvasRenderer:
             self._height = h
             self._composite_cache = None
 
-        # Get canvas composite
         canvas = self.composite_layers(layer_stack)
 
-        # Overlay canvas onto camera frame
-        display = self._overlay_on_frame(camera_frame, canvas)
+        if whiteboard_mode:
+            display = np.full((h, w, 3), whiteboard_bg, dtype=np.uint8)
+            if show_grid:
+                self._draw_grid(display)
+            display = self._overlay_on_frame(display, canvas)
+        else:
+            display = self._overlay_on_frame(camera_frame, canvas)
 
         # Draw UI elements
         if show_cursor and gesture_state is not None:
@@ -318,3 +325,13 @@ class CanvasRenderer:
     def invalidate_cache(self) -> None:
         """Force recomposite on next render."""
         self._composite_cache = None
+
+    @staticmethod
+    def _draw_grid(frame: np.ndarray, spacing: int = 40) -> None:
+        """Draw subtle grid lines on whiteboard background."""
+        h, w = frame.shape[:2]
+        grid_color = (230, 230, 230)
+        for x in range(0, w, spacing):
+            cv2.line(frame, (x, 0), (x, h), grid_color, 1, cv2.LINE_AA)
+        for y in range(0, h, spacing):
+            cv2.line(frame, (0, y), (w, y), grid_color, 1, cv2.LINE_AA)
