@@ -87,7 +87,7 @@ air-draw/
 git clone https://github.com/Shadman-Samin/air-draw.git
 cd air-draw
 
-# 2. Setup Virtual Environment
+# 2. Setup Virtual Environment (Optional)
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
